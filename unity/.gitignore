@@ -1,0 +1,54 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+UserSettings/
+
+# Auto-generated project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.opendb
+*.VC.db
+*.pidb.meta
+
+# Build artifacts
+*.apk
+*.aab
+*.unitypackage
+
+# Crash and profiling reports
+*.crash
+*.diff
+*.patch
+*.mp4
+*.webm
+*.prof
+
+# Generated lighting data
+[Ll]ightingData.asset
+
+# Log files
+*.log
+
+# Unity services and module files
+ProjectSettings/EditorBuildSettings.asset
+ProjectSettings/UnityConnectSettings.asset
+
+# Visual Studio 2022-specific files
+.vscode/
+.vs/
+*.dbmdl
+*.opendb
