@@ -1,6 +1,8 @@
 using NATS.Net;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,12 +10,27 @@ using UnityEngine;
 
 public enum PositionType
 {
-    X, Y, Z
+    Latitude, Longitude, Altitude
+}
+[Serializable]
+public class DataEntity
+{
+    public double Latitude = 0;
+    public double Longitude = 0;
+    public double Altitude = 0; // in feet
 }
 public class NatsReceiver : MonoBehaviour
 {
-    [SerializeField] private Transform user;
-    [SerializeField] private Transform drone;
+    public DataEntity UserEntity => userDataEntity;
+    public DataEntity DroneEntity => droneDataEntity;
+
+    [SerializeField] private string ipAddress = "127.0.0.1";
+    [SerializeField] private int portNumber = 4222;
+
+    [SerializeField]
+    private DataEntity userDataEntity = new();
+    [SerializeField]
+    private DataEntity droneDataEntity = new();
 
     private List<string> userSubjects = new List<string>()
         {
@@ -33,7 +50,7 @@ public class NatsReceiver : MonoBehaviour
 
     private async void Start()
     {
-        await using var nc = new NatsClient("nats://127.0.0.1:4222");
+        await using var nc = new NatsClient("nats://" + ipAddress + ":" + 4222);
         cts = new CancellationTokenSource();
 
         Debug.Log($"Listening for messages...");
@@ -43,19 +60,19 @@ public class NatsReceiver : MonoBehaviour
         {
             await foreach (var msg in nc.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
             {
-                Debug.Log($"Received from {subject}: {msg.Subject}: {msg.Data}");
+                Debug.Log($"Received from {subject}: {msg.Data}");
                 if (subject.Equals("drone.ground_station_1.user_1.measurement.latitude"))
                 {
-                    OnReceiveUserPosition(float.Parse(msg.Data), PositionType.Z);
+                    OnReceiveUserPosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Latitude);
                 }
                 else if (subject.Equals("drone.ground_station_1.user_1.measurement.longitude"))
                 {
-                    OnReceiveUserPosition(float.Parse(msg.Data), PositionType.X);
+                    OnReceiveUserPosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Longitude);
 
                 }
                 else if (subject.Equals("drone.ground_station_1.user_1.measurement.altitude"))
                 {
-                    OnReceiveUserPosition(float.Parse(msg.Data), PositionType.Y);
+                    OnReceiveUserPosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Altitude);
                 }
             }
         });
@@ -64,22 +81,23 @@ public class NatsReceiver : MonoBehaviour
         {
             await foreach (var msg in nc.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
             {
-                Debug.Log($"Received from {subject}: {msg.Subject}: {msg.Data}");
+                Debug.Log($"Received from {subject}: {msg.Data}");
                 switch (subject)
                 {
                     case "drone.ground_station_1.drone_1.measurement.latitude":
                         {
-                            OnReceiveDronePosition(float.Parse(msg.Data), PositionType.Z);
+                            Debug.Log("GOT LAT");
+                            OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Latitude);
                             break;
                         }
                     case "drone.ground_station_1.drone_1.measurement.longitude":
                         {
-                            OnReceiveDronePosition(float.Parse(msg.Data), PositionType.X);
+                            OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Longitude);
                             break;
                         }
                     case "drone.ground_station_1.drone_1.measurement.altitude":
                         {
-                            OnReceiveDronePosition(float.Parse(msg.Data), PositionType.Y);
+                            OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Altitude);
                             break;
                         }
                     default:
@@ -96,63 +114,50 @@ public class NatsReceiver : MonoBehaviour
         cts.Cancel();
     }
 
-    private void OnReceiveUserPosition(float data, PositionType type)
+    private void OnReceiveUserPosition(double data, PositionType type)
     {
         switch (type)
         {
-            case PositionType.X:
+            case PositionType.Latitude:
                 {
-                    user.transform.localPosition = new Vector3(data, user.transform.position.y, user.transform.position.z);
+                    userDataEntity.Latitude = data;
                     break;
                 }
-            case PositionType.Y:
+            case PositionType.Longitude:
                 {
-                    user.transform.localPosition = new Vector3(user.transform.position.x, data, user.transform.position.z);
+                    userDataEntity.Longitude = data;
                     break;
                 }
-            case PositionType.Z:
+            case PositionType.Altitude:
                 {
-                    user.transform.localPosition = new Vector3(user.transform.position.x, user.transform.position.y, data);
+                    userDataEntity.Altitude = data;
                     break;
                 }
             default:
                 break;
         }
     }
-    private void OnReceiveDronePosition(float data, PositionType type)
+    private void OnReceiveDronePosition(double data, PositionType type)
     {
         switch (type)
         {
-            case PositionType.X:
+            case PositionType.Latitude:
                 {
-                    drone.transform.localPosition = new Vector3(data, drone.transform.position.y, drone.transform.position.z);
+                    droneDataEntity.Latitude = data;
                     break;
                 }
-            case PositionType.Y:
+            case PositionType.Longitude:
                 {
-                    drone.transform.localPosition = new Vector3(drone.transform.position.x, data, drone.transform.position.z);
+                    droneDataEntity.Longitude = data;
                     break;
                 }
-            case PositionType.Z:
+            case PositionType.Altitude:
                 {
-                    drone.transform.localPosition = new Vector3(drone.transform.position.x, drone.transform.position.y, data);
+                    droneDataEntity.Altitude = data;
                     break;
                 }
             default:
                 break;
         }
-    }
-
-    public static double CalculateBearing(double lat1, double lon1, double lat2, double lon2)
-    {
-        var dLon = (lon2 - lon1) * Math.PI / 180;
-        var dPhi = Math.Log(
-            Math.Tan(lat2 * Math.PI / 360 + Math.PI / 4) / Math.Tan(lat1 * Math.PI / 360 + Math.PI / 4)
-        );
-        if (Math.Abs(dLon) > Math.PI)
-        {
-            dLon = dLon > 0 ? -(2 * Math.PI - dLon) : (2 * Math.PI + dLon);
-        }
-        return (Math.Atan2(dLon, dPhi) * 180 / Math.PI + 360) % 360; // Bearing in degrees
     }
 }

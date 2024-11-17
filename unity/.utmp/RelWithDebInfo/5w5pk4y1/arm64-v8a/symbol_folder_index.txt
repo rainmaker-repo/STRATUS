@@ -1,0 +1,1 @@
+C:\Users\Ethan\Desktop\Projects\Rainmaker\STRATUS\unity\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\build\intermediates\cxx\RelWithDebInfo\5w5pk4y1\obj\arm64-v8a
