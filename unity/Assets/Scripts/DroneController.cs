@@ -1,33 +1,24 @@
 using System;
+using System.Collections;
+using TMPro;
 using UnityEngine;
 
 public class DroneController : MonoBehaviour
 {
     [SerializeField] private Transform targetTransform;
+    [SerializeField] private Material targetMaterial;
+    [SerializeField] private TextMeshProUGUI targetText;
 
     [SerializeField] private NatsReceiver receiver;
 
-    //const double MetersPerDegreeLatitude = 111000; // Approximate meters per degree of latitude
-    //private const double FeetToMeters = 0.3048;  // Conversion factor from feet to meters
-
-    //public static Vector3 CalculateRelativePosition(
-    //    double lat1, double lon1, double alt1,
-    //    double lat2, double lon2, double alt2)
-    //{
-    //    // Convert latitude from degrees to radians
-    //    double lat1Radians = lat1 * Math.PI / 180;
-
-    //    // Calculate differences in longitude and latitude
-    //    double dLon = (lon2 - lon1) * MetersPerDegreeLatitude * Math.Cos(lat1Radians);
-    //    double dLat = (lat2 - lat1) * MetersPerDegreeLatitude;
-    //    double dAlt = (alt2 - alt1) * FeetToMeters;
-
-    //    return new Vector3((float)dLon, (float)dAlt, (float)dLat);
-    //}
     private const double EarthRadius = 6371000; // meters
     private const double MetersPerDegreeLatitude = 111000; // meters
     private const double FeetToMeters = 0.3048;  // Conversion factor from feet to meters
 
+    private void Start()
+    {
+        receiver.OnDroneAltitudeUpdate += OnDroneUpdate;
+    }
     public static Vector3 DeltaLatLonAltToMeters(double deltaLat, double deltaLon, double deltaAltitude, double latitude)
     {
         // Convert delta latitude to meters (always the same scale)
@@ -47,6 +38,7 @@ public class DroneController : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
+        //Debug.Log("Calculating relative pos");
         Vector3 relativePos = DeltaLatLonAltToMeters(receiver.DroneEntity.Latitude - receiver.UserEntity.Latitude,
                                                      receiver.DroneEntity.Longitude - receiver.UserEntity.Longitude,
                                                      receiver.DroneEntity.Altitude - receiver.UserEntity.Altitude,
@@ -55,5 +47,32 @@ public class DroneController : MonoBehaviour
         targetTransform.localPosition = relativePos;
 
         // transform.rotation = Quaternion.Euler(0, WorldManager.Instance.TrueHeading, 0);
+    }
+
+    private Coroutine _fadeCoroutine = null;
+    private void OnDroneUpdate()
+    {
+        if (_fadeCoroutine != null)
+        {
+            StopCoroutine(_fadeCoroutine);
+            _fadeCoroutine = null;
+        }
+        _fadeCoroutine = StartCoroutine(FadeOpacity(1f));
+    }
+
+    private IEnumerator FadeOpacity(float duration)
+    {
+        float t = 0;
+        while (t < duration)
+        {
+            float opacity = 1 - t / duration;
+            Color c = targetMaterial.GetColor("_BaseColor");
+            targetMaterial.SetColor("_BaseColor", new Color(c.r, c.g, c.b, opacity));
+            targetText.alpha = opacity;
+
+            yield return null;
+            t += Time.deltaTime;
+        }
+        _fadeCoroutine = null;
     }
 }

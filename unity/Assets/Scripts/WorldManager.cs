@@ -12,9 +12,14 @@ public class WorldManager : Singleton<WorldManager>
         // Check if the device has a compass
         if (SystemInfo.supportsGyroscope)
         {
+            Debug.Log("DOES SUPPORT GYROSCOPE");
             // Enable the compass
             Input.location.Start();
             Input.compass.enabled = true;
+        }
+        else
+        {
+            Debug.Log("DOES NOT SUPPORT GYROSCOPE");
         }
     }
 

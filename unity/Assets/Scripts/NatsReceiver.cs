@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Events;
 
 public enum PositionType
 {
@@ -45,6 +46,14 @@ public class NatsReceiver : MonoBehaviour
             "drone.ground_station_1.drone_1.measurement.altitude",
         };
 
+    public UnityAction OnUserLatitudeUpdate;
+    public UnityAction OnUserLongitudeUpdate;
+    public UnityAction OnUserAltitudeUpdate;
+
+    public UnityAction OnDroneLatitudeUpdate;
+    public UnityAction OnDroneLongitudeUpdate;
+    public UnityAction OnDroneAltitudeUpdate;
+
     private CancellationTokenSource cts = new();
 
 
@@ -55,22 +64,20 @@ public class NatsReceiver : MonoBehaviour
 
         Debug.Log($"Listening for messages...");
 
-
         var userTasks = userSubjects.Select(async subject =>
         {
             await foreach (var msg in nc.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
             {
                 Debug.Log($"Received from {subject}: {msg.Data}");
-                if (subject.Equals("drone.ground_station_1.user_1.measurement.latitude"))
+                if (subject.Equals(userSubjects[0]))
                 {
                     OnReceiveUserPosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Latitude);
                 }
-                else if (subject.Equals("drone.ground_station_1.user_1.measurement.longitude"))
+                else if (subject.Equals(userSubjects[1]))
                 {
                     OnReceiveUserPosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Longitude);
-
                 }
-                else if (subject.Equals("drone.ground_station_1.user_1.measurement.altitude"))
+                else if (subject.Equals(userSubjects[2]))
                 {
                     OnReceiveUserPosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Altitude);
                 }
@@ -82,26 +89,18 @@ public class NatsReceiver : MonoBehaviour
             await foreach (var msg in nc.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
             {
                 Debug.Log($"Received from {subject}: {msg.Data}");
-                switch (subject)
+                if (subject.Equals(droneSubjects[0]))
                 {
-                    case "drone.ground_station_1.drone_1.measurement.latitude":
-                        {
-                            Debug.Log("GOT LAT");
-                            OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Latitude);
-                            break;
-                        }
-                    case "drone.ground_station_1.drone_1.measurement.longitude":
-                        {
-                            OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Longitude);
-                            break;
-                        }
-                    case "drone.ground_station_1.drone_1.measurement.altitude":
-                        {
-                            OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Altitude);
-                            break;
-                        }
-                    default:
-                        break;
+                    OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Latitude);
+                }
+                else if (subject.Equals(droneSubjects[1]))
+                {
+                    OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Longitude);
+                }
+                else if (subject.Equals(droneSubjects[2]))
+                {
+                    OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Altitude);
+
                 }
             }
         });
@@ -116,48 +115,68 @@ public class NatsReceiver : MonoBehaviour
 
     private void OnReceiveUserPosition(double data, PositionType type)
     {
-        switch (type)
+        try
         {
-            case PositionType.Latitude:
-                {
-                    userDataEntity.Latitude = data;
+            switch (type)
+            {
+                case PositionType.Latitude:
+                    {
+                        userDataEntity.Latitude = data;
+                        OnUserLatitudeUpdate?.Invoke();
+                        break;
+                    }
+                case PositionType.Longitude:
+                    {
+                        userDataEntity.Longitude = data;
+                        OnUserLongitudeUpdate?.Invoke();
+                        break;
+                    }
+                case PositionType.Altitude:
+                    {
+                        userDataEntity.Altitude = data;
+                        OnUserAltitudeUpdate?.Invoke();
+                        break;
+                    }
+                default:
                     break;
-                }
-            case PositionType.Longitude:
-                {
-                    userDataEntity.Longitude = data;
-                    break;
-                }
-            case PositionType.Altitude:
-                {
-                    userDataEntity.Altitude = data;
-                    break;
-                }
-            default:
-                break;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
         }
     }
     private void OnReceiveDronePosition(double data, PositionType type)
     {
-        switch (type)
+        try
         {
-            case PositionType.Latitude:
-                {
-                    droneDataEntity.Latitude = data;
+            switch (type)
+            {
+                case PositionType.Latitude:
+                    {
+                        droneDataEntity.Latitude = data;
+                        OnDroneLatitudeUpdate?.Invoke();
+                        break;
+                    }
+                case PositionType.Longitude:
+                    {
+                        droneDataEntity.Longitude = data;
+                        OnDroneLongitudeUpdate?.Invoke();
+                        break;
+                    }
+                case PositionType.Altitude:
+                    {
+                        droneDataEntity.Altitude = data;
+                        OnDroneAltitudeUpdate?.Invoke();
+                        break;
+                    }
+                default:
                     break;
-                }
-            case PositionType.Longitude:
-                {
-                    droneDataEntity.Longitude = data;
-                    break;
-                }
-            case PositionType.Altitude:
-                {
-                    droneDataEntity.Altitude = data;
-                    break;
-                }
-            default:
-                break;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogException(e);
         }
     }
 }
