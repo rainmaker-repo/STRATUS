@@ -59,7 +59,13 @@ public class NatsReceiver : MonoBehaviour
 
     private async void Start()
     {
-        await using var nc = new NatsClient("nats://" + ipAddress + ":" + 4222);
+      
+#if !UNITY_EDITOR
+        ipAddress = GlobalConfigData.IP_ADDRESS;
+        portNumber = GlobalConfigData.PORT_NUMBER;
+#endif
+
+        await using var nc = new NatsClient("nats://" + ipAddress + ":" + portNumber);
         cts = new CancellationTokenSource();
 
         Debug.Log($"Listening for messages...");
