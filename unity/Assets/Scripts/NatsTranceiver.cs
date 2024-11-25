@@ -1,7 +1,6 @@
 using NATS.Net;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -20,7 +19,7 @@ public class DataEntity
     public double Longitude = 0;
     public double Altitude = 0; // in feet
 }
-public class NatsReceiver : MonoBehaviour
+public class NatsTranceiver : MonoBehaviour
 {
     public DataEntity UserEntity => userDataEntity;
     public DataEntity DroneEntity => droneDataEntity;
@@ -64,10 +63,11 @@ public class NatsReceiver : MonoBehaviour
     public UnityAction<string, double> OnDroneLatitudeUpdate;
     public UnityAction<string, double> OnDroneLongitudeUpdate;
     public UnityAction<string, double> OnDroneAltitudeUpdate;
+    public UnityAction<string, string> OnEventPublished;
 
     private CancellationTokenSource cts = new();
 
-
+    private NatsClient client = null;
     private async void Start()
     {
 
@@ -77,14 +77,16 @@ public class NatsReceiver : MonoBehaviour
 #endif
         addedDrones = new();
 
-        await using var nc = new NatsClient("nats://" + ipAddress + ":" + portNumber);
+        client = new NatsClient("nats://" + ipAddress + ":" + portNumber);
+        await client.ConnectAsync();
+
         cts = new CancellationTokenSource();
 
         Debug.Log($"Listening for messages...");
 
         var userTasks = userSubjects.Select(async subject =>
         {
-            await foreach (var msg in nc.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
+            await foreach (var msg in client.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
             {
                 Debug.Log($"Received from {subject}: {msg.Data}");
                 if (subject.Equals(userSubjects[0]))
@@ -104,7 +106,7 @@ public class NatsReceiver : MonoBehaviour
 
         var droneTasks = droneSubjects.Select(async subject =>
         {
-            await foreach (var msg in nc.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
+            await foreach (var msg in client.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
             {
                 Debug.Log($"Received from {subject}: {msg.Data}");
                 string[] parts = subject.Split('.');
@@ -208,5 +210,20 @@ public class NatsReceiver : MonoBehaviour
         {
             Debug.LogException(e);
         }
+    }
+
+    /*
+     * Button event names to subscribe to =>
+     * drone.ground_station_1.{droneName}.buttonEvent.A
+     * drone.ground_station_1.{droneName}.buttonEvent.B
+     * drone.ground_station_1.{droneName}.buttonEvent.X
+     * drone.ground_station_1.{droneName}.buttonEvent.Y
+     * 
+     * Data => 0 (for button down) or 1 (for button up)
+     */
+    public async Task PublishEvent(string subject, string data)
+    {
+        await client.PublishAsync(subject, data);
+        OnEventPublished?.Invoke(subject, data);
     }
 }

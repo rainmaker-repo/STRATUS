@@ -3,7 +3,7 @@ using UnityEngine;
 
 public class NatsMessageDebugger : MonoBehaviour
 {
-    [SerializeField] private NatsReceiver receiver;
+    [SerializeField] private NatsTranceiver receiver;
     [SerializeField] private TextMeshProUGUI userLatitudeText;
     [SerializeField] private TextMeshProUGUI userLongitudeText;
     [SerializeField] private TextMeshProUGUI userAltitudeText;

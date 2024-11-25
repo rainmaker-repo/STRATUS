@@ -7,9 +7,14 @@ public class DroneController : MonoBehaviour
 {
     [SerializeField] private Transform targetTransform;
     [SerializeField] private float originalScale = 0.1f;
-    [SerializeField] private Material targetMaterial;
+
+    [SerializeField] private MeshRenderer targetMesh;
+    [SerializeField] private Material defaultMaterial;
+    [SerializeField] private Material hoverMaterial;
+    [SerializeField] private Material selectMaterial;
 
     [SerializeField] private CanvasGroup textCanvasGroup;
+    [SerializeField] private TextMeshProUGUI droneNameText;
     [SerializeField] private TextMeshProUGUI latitudeText;
     [SerializeField] private TextMeshProUGUI longitudeText;
     [SerializeField] private TextMeshProUGUI altitudeText;
@@ -19,6 +24,7 @@ public class DroneController : MonoBehaviour
     public double Latitude = 0;
     public double Longitude = 0;
     public double Altitude = 0;
+    public bool IsSelected => isSelected;
 
     private const double EarthRadius = 6371000; // meters
     private const double MetersPerDegreeLatitude = 111000; // meters
@@ -29,7 +35,9 @@ public class DroneController : MonoBehaviour
 
     private void Start()
     {
+        targetMesh.material = defaultMaterial;
     }
+
     public static Vector3 DeltaLatLonAltToMeters(double deltaLat, double deltaLon, double deltaAltitude, double latitude)
     {
         // Convert delta latitude to meters (always the same scale)
@@ -63,6 +71,7 @@ public class DroneController : MonoBehaviour
         targetTransform.localScale = Vector3.one * evaluatedScale;
 
 
+        droneNameText.text = gameObject.name;
         latitudeText.text = "Latitude: " + Latitude.ToString();
         longitudeText.text = "Longitude: " + Longitude.ToString();
         altitudeText.text = "Altitude: " + Altitude.ToString();
@@ -88,8 +97,8 @@ public class DroneController : MonoBehaviour
         while (t < duration)
         {
             float opacity = 1 - t / duration;
-            Color c = targetMaterial.GetColor("_BaseColor");
-            targetMaterial.SetColor("_BaseColor", new Color(c.r, c.g, c.b, opacity));
+            Color c = targetMesh.material.GetColor("_BaseColor");
+            targetMesh.material.SetColor("_BaseColor", new Color(c.r, c.g, c.b, opacity));
             textCanvasGroup.alpha = 0.5f + opacity / 2f;
 
             yield return null;
@@ -98,16 +107,31 @@ public class DroneController : MonoBehaviour
         fadeCoroutine = null;
     }
 
-    private void OnDroneHovered()
+    public void OnDroneHovered()
     {
-
+        targetMesh.material = hoverMaterial;
     }
-    private void OnDroneUnhovered()
+    public void OnDroneUnhovered()
     {
-
+        if (isSelected)
+        {
+            targetMesh.material = selectMaterial;
+        }
+        else
+        {
+            targetMesh.material = defaultMaterial;
+        }
     }
-    private void OnDroneSelected()
+    public void OnDroneSelected()
     {
-
+        isSelected = !isSelected;
+        if (isSelected)
+        {
+            targetMesh.material = selectMaterial;
+        }
+        else
+        {
+            targetMesh.material = defaultMaterial;
+        }
     }
 }
