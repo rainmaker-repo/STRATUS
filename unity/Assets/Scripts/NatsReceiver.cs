@@ -44,26 +44,38 @@ public class NatsReceiver : MonoBehaviour
             "drone.ground_station_1.drone_1.measurement.latitude",
             "drone.ground_station_1.drone_1.measurement.longitude",
             "drone.ground_station_1.drone_1.measurement.altitude",
+
+            "drone.ground_station_1.drone_2.measurement.latitude",
+            "drone.ground_station_1.drone_2.measurement.longitude",
+            "drone.ground_station_1.drone_2.measurement.altitude",
+
+            "drone.ground_station_1.drone_3.measurement.latitude",
+            "drone.ground_station_1.drone_3.measurement.longitude",
+            "drone.ground_station_1.drone_3.measurement.altitude",
         };
+
+    private HashSet<string> addedDrones;
 
     public UnityAction OnUserLatitudeUpdate;
     public UnityAction OnUserLongitudeUpdate;
     public UnityAction OnUserAltitudeUpdate;
 
-    public UnityAction OnDroneLatitudeUpdate;
-    public UnityAction OnDroneLongitudeUpdate;
-    public UnityAction OnDroneAltitudeUpdate;
+    public UnityAction<string> OnNewDroneDetected;
+    public UnityAction<string, double> OnDroneLatitudeUpdate;
+    public UnityAction<string, double> OnDroneLongitudeUpdate;
+    public UnityAction<string, double> OnDroneAltitudeUpdate;
 
     private CancellationTokenSource cts = new();
 
 
     private async void Start()
     {
-      
+
 #if !UNITY_EDITOR
         ipAddress = GlobalConfigData.IP_ADDRESS;
         portNumber = GlobalConfigData.PORT_NUMBER;
 #endif
+        addedDrones = new();
 
         await using var nc = new NatsClient("nats://" + ipAddress + ":" + portNumber);
         cts = new CancellationTokenSource();
@@ -95,18 +107,27 @@ public class NatsReceiver : MonoBehaviour
             await foreach (var msg in nc.SubscribeAsync<string>(subject).WithCancellation(cts.Token))
             {
                 Debug.Log($"Received from {subject}: {msg.Data}");
-                if (subject.Equals(droneSubjects[0]))
-                {
-                    OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Latitude);
-                }
-                else if (subject.Equals(droneSubjects[1]))
-                {
-                    OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Longitude);
-                }
-                else if (subject.Equals(droneSubjects[2]))
-                {
-                    OnReceiveDronePosition(double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Altitude);
+                string[] parts = subject.Split('.');
+                string name = parts[2];
+                string dataType = parts[4];
 
+                if (!addedDrones.Contains(name))
+                {
+                    addedDrones.Add(name);
+                    OnNewDroneDetected?.Invoke(name);
+                }
+                
+                if (dataType.Equals("latitude"))
+                {
+                    OnReceiveDronePosition(name, double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Latitude);
+                }
+                else if (dataType.Equals("longitude"))
+                {
+                    OnReceiveDronePosition(name, double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Longitude);
+                }
+                else if (dataType.Equals("altitude"))
+                {
+                    OnReceiveDronePosition(name, double.Parse(msg.Data, CultureInfo.InvariantCulture), PositionType.Altitude);
                 }
             }
         });
@@ -128,18 +149,21 @@ public class NatsReceiver : MonoBehaviour
                 case PositionType.Latitude:
                     {
                         userDataEntity.Latitude = data;
+                        UserManager.Instance.Latitude = data;
                         OnUserLatitudeUpdate?.Invoke();
                         break;
                     }
                 case PositionType.Longitude:
                     {
                         userDataEntity.Longitude = data;
+                        UserManager.Instance.Longitude = data;
                         OnUserLongitudeUpdate?.Invoke();
                         break;
                     }
                 case PositionType.Altitude:
                     {
                         userDataEntity.Altitude = data;
+                        UserManager.Instance.Altitude = data;
                         OnUserAltitudeUpdate?.Invoke();
                         break;
                     }
@@ -152,7 +176,7 @@ public class NatsReceiver : MonoBehaviour
             Debug.LogException(e);
         }
     }
-    private void OnReceiveDronePosition(double data, PositionType type)
+    private void OnReceiveDronePosition(string droneName, double data, PositionType type)
     {
         try
         {
@@ -161,19 +185,19 @@ public class NatsReceiver : MonoBehaviour
                 case PositionType.Latitude:
                     {
                         droneDataEntity.Latitude = data;
-                        OnDroneLatitudeUpdate?.Invoke();
+                        OnDroneLatitudeUpdate?.Invoke(droneName, data);
                         break;
                     }
                 case PositionType.Longitude:
                     {
                         droneDataEntity.Longitude = data;
-                        OnDroneLongitudeUpdate?.Invoke();
+                        OnDroneLongitudeUpdate?.Invoke(droneName, data);
                         break;
                     }
                 case PositionType.Altitude:
                     {
                         droneDataEntity.Altitude = data;
-                        OnDroneAltitudeUpdate?.Invoke();
+                        OnDroneAltitudeUpdate?.Invoke(droneName, data);
                         break;
                     }
                 default:

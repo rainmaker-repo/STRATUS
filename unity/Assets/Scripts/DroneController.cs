@@ -6,18 +6,29 @@ using UnityEngine;
 public class DroneController : MonoBehaviour
 {
     [SerializeField] private Transform targetTransform;
+    [SerializeField] private float originalScale = 0.1f;
     [SerializeField] private Material targetMaterial;
-    [SerializeField] private TextMeshProUGUI targetText;
 
-    [SerializeField] private NatsReceiver receiver;
+    [SerializeField] private CanvasGroup textCanvasGroup;
+    [SerializeField] private TextMeshProUGUI latitudeText;
+    [SerializeField] private TextMeshProUGUI longitudeText;
+    [SerializeField] private TextMeshProUGUI altitudeText;
+    [SerializeField] private TextMeshProUGUI distanceText;
+
+
+    public double Latitude = 0;
+    public double Longitude = 0;
+    public double Altitude = 0;
 
     private const double EarthRadius = 6371000; // meters
     private const double MetersPerDegreeLatitude = 111000; // meters
     private const double FeetToMeters = 0.3048;  // Conversion factor from feet to meters
 
+    private bool isSelected = false;
+    private Coroutine fadeCoroutine = null;
+
     private void Start()
     {
-        receiver.OnDroneAltitudeUpdate += OnDroneUpdate;
     }
     public static Vector3 DeltaLatLonAltToMeters(double deltaLat, double deltaLon, double deltaAltitude, double latitude)
     {
@@ -38,26 +49,37 @@ public class DroneController : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
-        //Debug.Log("Calculating relative pos");
-        Vector3 relativePos = DeltaLatLonAltToMeters(receiver.DroneEntity.Latitude - receiver.UserEntity.Latitude,
-                                                     receiver.DroneEntity.Longitude - receiver.UserEntity.Longitude,
-                                                     receiver.DroneEntity.Altitude - receiver.UserEntity.Altitude,
-                                                     receiver.UserEntity.Latitude);
+        UserManager userManager = UserManager.Instance;
+        Vector3 relativePos = DeltaLatLonAltToMeters(Latitude - userManager.Latitude,
+                                                     Longitude - userManager.Longitude,
+                                                     Altitude - userManager.Altitude,
+                                                     userManager.Latitude);
+        float distance = Mathf.Abs(relativePos.magnitude);
 
         targetTransform.localPosition = relativePos;
+
+        float scaleMultiplier = Mathf.Clamp(distance, 1f, Mathf.Infinity);
+        float evaluatedScale = originalScale * scaleMultiplier;
+        targetTransform.localScale = Vector3.one * evaluatedScale;
+
+
+        latitudeText.text = "Latitude: " + Latitude.ToString();
+        longitudeText.text = "Longitude: " + Longitude.ToString();
+        altitudeText.text = "Altitude: " + Altitude.ToString();
+        distanceText.text = "Distance from user: " + distance.ToString();
+
 
         // transform.rotation = Quaternion.Euler(0, WorldManager.Instance.TrueHeading, 0);
     }
 
-    private Coroutine _fadeCoroutine = null;
-    private void OnDroneUpdate()
+    public void UpdateVisual()
     {
-        if (_fadeCoroutine != null)
+        if (fadeCoroutine != null)
         {
-            StopCoroutine(_fadeCoroutine);
-            _fadeCoroutine = null;
+            StopCoroutine(fadeCoroutine);
+            fadeCoroutine = null;
         }
-        _fadeCoroutine = StartCoroutine(FadeOpacity(1f));
+        fadeCoroutine = StartCoroutine(FadeOpacity(1f));
     }
 
     private IEnumerator FadeOpacity(float duration)
@@ -68,11 +90,24 @@ public class DroneController : MonoBehaviour
             float opacity = 1 - t / duration;
             Color c = targetMaterial.GetColor("_BaseColor");
             targetMaterial.SetColor("_BaseColor", new Color(c.r, c.g, c.b, opacity));
-            targetText.alpha = opacity;
+            textCanvasGroup.alpha = 0.5f + opacity / 2f;
 
             yield return null;
             t += Time.deltaTime;
         }
-        _fadeCoroutine = null;
+        fadeCoroutine = null;
+    }
+
+    private void OnDroneHovered()
+    {
+
+    }
+    private void OnDroneUnhovered()
+    {
+
+    }
+    private void OnDroneSelected()
+    {
+
     }
 }
